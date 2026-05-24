@@ -1,5 +1,15 @@
 # sql-portfolio – Paviyathachayini Mahendran
-10+ years of database development experience across **SQL Server** and **MySQL**, covering stored procedures, ETL pipelines, performance tuning, and schema design. 
+I'm a database developer with 8+ years building the data infrastructure that businesses run on — from complex ETL pipelines and schema design to query optimization and stored procedures across SQL Server and MySQL.
+
+Now expanding into data analytics: translating that deep data engineering foundation into dashboards, insights, and business intelligence. Currently pursuing the Microsoft Power BI PL-300 certification.
+
+What I bring to analytics roles:
+→ I understand the data at the source, not just the surface
+→ I write clean, optimized SQL that doesn't slow dashboards down
+→ I've designed the schemas that analysts usually struggle to query
+
+Open to Data Analyst and Business Intelligence roles in the UAE — especially in finance, logistics, and tech sectors.
+
 This repo contains clean, commented examples of real patterns I work with —
 sanitized and adapted for sharing.
 
