@@ -1,0 +1,29 @@
+-- ============================================================
+-- Sample data
+-- ============================================================
+INSERT INTO dbo.Categories (CategoryName, ParentCategoryID) VALUES
+    ('Electronics',    NULL),
+    ('Laptops',        1),
+    ('Smartphones',    1),
+    ('Clothing',       NULL);
+ 
+INSERT INTO dbo.Customers (FullName, Email, Region) VALUES
+    ('Ahmed Al Mansoori',   'ahmed@example.com',   'Dubai'),
+    ('Priya Nair',          'priya@example.com',   'Abu Dhabi'),
+    ('John Carter',         'john@example.com',    'Sharjah');
+ 
+INSERT INTO dbo.Products (CategoryID, ProductName, SKU, UnitPrice, StockQty) VALUES
+    (2, 'Dell XPS 15',          'DELL-XPS-15',   1299.00, 50),
+    (3, 'Samsung Galaxy S24',   'SAM-S24-BLK',    899.00, 120),
+    (4, 'Linen Shirt Blue',     'SHIRT-LIN-BLU',   49.99, 200);
+ 
+INSERT INTO dbo.Orders (CustomerID, Status, ShippingRegion, OrderTotal) VALUES
+    (1, 'Delivered', 'Dubai',     1299.00),
+    (2, 'Shipped',   'Abu Dhabi',  899.00),
+    (3, 'Pending',   'Sharjah',     49.99);
+ 
+INSERT INTO dbo.OrderItems (OrderID, ProductID, Quantity, UnitPrice) VALUES
+    (1, 1, 1, 1299.00),
+    (2, 2, 1,  899.00),
+    (3, 3, 1,   49.99);
+GO
