@@ -41,6 +41,22 @@ Database Developer with 10+ years building and optimizing data systems.
 I focus on writing maintainable SQL, efficient ETL pipelines, and schemas
 that hold up as data scales.
 
+In my current role as Associate Lead – Database Development at Customer Analytics India Pvt. Ltd., I have been the primary driver of BI and data solutions for ProSource Wholesale, one of the largest wholesale showroom networks in the USA. My responsibilities closely mirror what Al Futtaim is seeking:
+
+• Steering BI & Analytics delivery: I have led complex data migrations, designed data models in Creatio CRM, and built automated pipelines that reduced manual intervention and improved data reliability across production environments.
+
+• Translating business requirements into insights: I worked directly with stakeholders to map business processes into database architecture and reporting solutions — ensuring data outputs aligned with operational strategy.
+
+• Driving transformation projects: I have contributed to full-cycle transformation initiatives from sprint planning and specification analysis through to deployment and production support — including cross-functional collaboration between front-end, QA, and database teams.
+
+• Power BI & Analytics: I have developed and maintained Power BI dashboards and reports, complemented by advanced SQL query optimization (using EXPLAIN PLAN, TKPROF, DBMS_PROFILER), ETL pipelines, and SSRS reporting.
+
+My cross-domain experience in both retail and healthcare data gives me a strong foundation to enhance analytics maturity across multiple business lines, which I understand is central to this role.
+
+I hold a current Creatio Developer certification (valid through 2028) and have completed Python for Data Science training, reflecting my commitment to staying at the forefront of data technologies. I am actively relocating to the UAE and am available to join at short notice.
+
+
+
 🔗 [LinkedIn](https://www.linkedin.com/in/paviyathachayini-mahendran-808830112/)
 
 ---
