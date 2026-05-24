@@ -1,0 +1,167 @@
+-- ============================================================
+-- Script  : window_functions_examples.sql
+-- Purpose : Practical window function patterns used in
+--           real analytics and reporting work.
+--           Covers ROW_NUMBER, RANK, DENSE_RANK, NTILE,
+--           LAG/LEAD, running totals, and moving averages.
+-- Author  : Paviyathachayini Mahendran
+-- Stack   : SQL Server (T-SQL) — all examples also valid in
+--           MySQL 8+ and PostgreSQL with minor syntax tweaks
+-- ============================================================
+ 
+-- Sample dataset (inline — no setup needed)
+WITH SalesData AS (
+    SELECT * FROM (VALUES
+        ('2024-01', 'Dubai',     'Ahmed',  12500),
+        ('2024-01', 'Abu Dhabi', 'Priya',   9800),
+        ('2024-01', 'Sharjah',   'John',    7200),
+        ('2024-02', 'Dubai',     'Ahmed',  15300),
+        ('2024-02', 'Abu Dhabi', 'Priya',  11200),
+        ('2024-02', 'Sharjah',   'John',    6900),
+        ('2024-03', 'Dubai',     'Ahmed',  13800),
+        ('2024-03', 'Abu Dhabi', 'Priya',  14100),
+        ('2024-03', 'Sharjah',   'John',    8400)
+    ) AS t (SalesMonth, Region, SalesRep, Revenue)
+)
+ 
+-- ============================================================
+-- 1. ROW_NUMBER — unique sequential rank per partition
+--    Use case: pick the top 1 record per group
+-- ============================================================
+, Ranked AS (
+    SELECT
+        SalesMonth,
+        Region,
+        SalesRep,
+        Revenue,
+        ROW_NUMBER() OVER (
+            PARTITION BY SalesMonth
+            ORDER BY Revenue DESC
+        )  AS RowNum,          -- unique: no ties
+        RANK() OVER (
+            PARTITION BY SalesMonth
+            ORDER BY Revenue DESC
+        )  AS RankNum,         -- ties get same rank, next rank skips
+        DENSE_RANK() OVER (
+            PARTITION BY SalesMonth
+            ORDER BY Revenue DESC
+        )  AS DenseRankNum     -- ties get same rank, next rank does NOT skip
+    FROM SalesData
+)
+ 
+-- Top earner per month
+SELECT SalesMonth, Region, SalesRep, Revenue, RowNum AS Rank
+FROM   Ranked
+WHERE  RowNum = 1;
+ 
+-- ============================================================
+-- 2. LAG / LEAD — compare current row to previous/next
+--    Use case: month-over-month revenue change
+-- ============================================================
+WITH MoM AS (
+    SELECT
+        SalesMonth,
+        SalesRep,
+        Revenue,
+        LAG(Revenue, 1, 0) OVER (
+            PARTITION BY SalesRep
+            ORDER BY SalesMonth
+        )                                           AS PrevMonthRevenue,
+        LEAD(Revenue, 1, NULL) OVER (
+            PARTITION BY SalesRep
+            ORDER BY SalesMonth
+        )                                           AS NextMonthRevenue
+    FROM SalesData
+)
+SELECT
+    SalesMonth,
+    SalesRep,
+    Revenue,
+    PrevMonthRevenue,
+    Revenue - PrevMonthRevenue                      AS MoMChange,
+    CASE
+        WHEN PrevMonthRevenue = 0 THEN NULL
+        ELSE ROUND(
+            100.0 * (Revenue - PrevMonthRevenue) / PrevMonthRevenue,
+        1)
+    END                                             AS MoMChangePct
+FROM MoM
+ORDER BY SalesRep, SalesMonth;
+ 
+-- ============================================================
+-- 3. Running total & cumulative percentage
+--    Use case: cumulative revenue tracking across months
+-- ============================================================
+WITH RegionTotals AS (
+    SELECT
+        SalesMonth,
+        Region,
+        SUM(Revenue) AS MonthlyRevenue
+    FROM SalesData
+    GROUP BY SalesMonth, Region
+)
+SELECT
+    SalesMonth,
+    Region,
+    MonthlyRevenue,
+    SUM(MonthlyRevenue) OVER (
+        PARTITION BY Region
+        ORDER BY SalesMonth
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    )                                               AS RunningTotal,
+    ROUND(
+        100.0 * MonthlyRevenue /
+        SUM(MonthlyRevenue) OVER (PARTITION BY Region),
+    1)                                              AS PctOfYearlyTotal
+FROM RegionTotals
+ORDER BY Region, SalesMonth;
+ 
+-- ============================================================
+-- 4. 2-month moving average
+--    Use case: smoothing revenue trend for dashboards
+-- ============================================================
+WITH RepMonthly AS (
+    SELECT
+        SalesRep,
+        SalesMonth,
+        Revenue
+    FROM SalesData
+)
+SELECT
+    SalesRep,
+    SalesMonth,
+    Revenue,
+    ROUND(
+        AVG(CAST(Revenue AS FLOAT)) OVER (
+            PARTITION BY SalesRep
+            ORDER BY SalesMonth
+            ROWS BETWEEN 1 PRECEDING AND CURRENT ROW
+        ),
+    0)                                              AS MovingAvg_2Month
+FROM RepMonthly
+ORDER BY SalesRep, SalesMonth;
+ 
+-- ============================================================
+-- 5. NTILE — split reps into performance quartiles
+--    Use case: categorise sales team into tiers
+-- ============================================================
+WITH RepTotals AS (
+    SELECT
+        SalesRep,
+        SUM(Revenue) AS TotalRevenue
+    FROM SalesData
+    GROUP BY SalesRep
+)
+SELECT
+    SalesRep,
+    TotalRevenue,
+    NTILE(4) OVER (ORDER BY TotalRevenue DESC)  AS Quartile,
+    CASE NTILE(4) OVER (ORDER BY TotalRevenue DESC)
+        WHEN 1 THEN 'Top performer'
+        WHEN 2 THEN 'Above average'
+        WHEN 3 THEN 'Below average'
+        WHEN 4 THEN 'Needs support'
+    END                                         AS PerformanceTier
+FROM RepTotals
+ORDER BY TotalRevenue DESC;
+GO
