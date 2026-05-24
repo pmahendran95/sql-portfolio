@@ -1,0 +1,119 @@
+-- ============================================================
+-- Script  : index_audit_query.sql
+-- Purpose : Three-part index health audit for SQL Server.
+--           1. Missing indexes — ranked by estimated impact
+--           2. Unused indexes  — wasting write overhead
+--           3. Index fragmentation — candidates for rebuild/reorganise
+-- Author  : Paviyathachayini Mahendran
+-- Stack   : SQL Server (T-SQL)
+-- Note    : Run on the target database. Stats reset on restart.
+-- ============================================================
+ 
+USE YourDatabaseName;   -- <-- change this
+GO
+ 
+-- ============================================================
+-- Part 1 — Missing indexes (SQL Server recommendations)
+-- Sorted by estimated impact (seeks * avg_total_user_cost)
+-- ============================================================
+SELECT TOP 20
+    ROUND(
+        migs.avg_total_user_cost * migs.avg_user_impact * (migs.user_seeks + migs.user_scans),
+    2)                                          AS EstimatedImpactScore,
+    migs.user_seeks                             AS Seeks,
+    migs.user_scans                             AS Scans,
+    migs.avg_user_impact                        AS AvgImpactPct,
+    mid.statement                               AS TableName,
+    mid.equality_columns                        AS EqualityCols,
+    mid.inequality_columns                      AS InequalityCols,
+    mid.included_columns                        AS IncludedCols,
+    -- Ready-to-run CREATE INDEX suggestion
+    CONCAT(
+        'CREATE INDEX IX_Missing_',
+        REPLACE(REPLACE(mid.statement, '[', ''), ']', ''),
+        ' ON ', mid.statement,
+        ' (', ISNULL(mid.equality_columns, ''), ')',
+        CASE WHEN mid.included_columns IS NOT NULL
+             THEN CONCAT(' INCLUDE (', mid.included_columns, ')')
+             ELSE ''
+        END, ';'
+    )                                           AS SuggestedIndexDDL
+FROM
+    sys.dm_db_missing_index_groups          mig
+    JOIN sys.dm_db_missing_index_group_stats migs ON mig.index_group_handle  = migs.group_handle
+    JOIN sys.dm_db_missing_index_details     mid  ON mig.index_handle        = mid.index_handle
+WHERE
+    mid.database_id = DB_ID()
+ORDER BY
+    EstimatedImpactScore DESC;
+GO
+ 
+-- ============================================================
+-- Part 2 — Unused indexes
+-- Indexes that have never been used for seeks/scans/lookups
+-- but still cost write overhead on INSERT/UPDATE/DELETE
+-- ============================================================
+SELECT
+    OBJECT_NAME(i.object_id)    AS TableName,
+    i.name                      AS IndexName,
+    i.type_desc                 AS IndexType,
+    ius.user_seeks              AS Seeks,
+    ius.user_scans              AS Scans,
+    ius.user_lookups            AS Lookups,
+    ius.user_updates            AS Writes,
+    ius.last_user_seek          AS LastSeek,
+    ius.last_user_scan          AS LastScan,
+    -- Drop suggestion (review before running!)
+    CONCAT('-- DROP INDEX ', i.name, ' ON ', OBJECT_NAME(i.object_id), ';') AS DropSuggestion
+FROM
+    sys.indexes                         i
+    LEFT JOIN sys.dm_db_index_usage_stats ius
+        ON  i.object_id = ius.object_id
+        AND i.index_id  = ius.index_id
+        AND ius.database_id = DB_ID()
+WHERE
+    i.type_desc <> 'HEAP'
+    AND i.is_primary_key = 0
+    AND i.is_unique_constraint = 0
+    AND OBJECT_NAME(i.object_id) NOT LIKE 'sys%'
+    AND (ius.user_seeks  = 0 OR ius.user_seeks  IS NULL)
+    AND (ius.user_scans  = 0 OR ius.user_scans  IS NULL)
+    AND (ius.user_lookups= 0 OR ius.user_lookups IS NULL)
+ORDER BY
+    ius.user_updates DESC;
+GO
+ 
+-- ============================================================
+-- Part 3 — Index fragmentation
+-- avg_fragmentation > 30% → REBUILD
+-- avg_fragmentation 10–30% → REORGANISE
+-- ============================================================
+SELECT
+    OBJECT_NAME(ips.object_id)          AS TableName,
+    i.name                              AS IndexName,
+    ips.index_type_desc                 AS IndexType,
+    ROUND(ips.avg_fragmentation_in_percent, 1) AS FragmentationPct,
+    ips.page_count                      AS Pages,
+    CASE
+        WHEN ips.avg_fragmentation_in_percent >= 30 THEN 'REBUILD'
+        WHEN ips.avg_fragmentation_in_percent >= 10 THEN 'REORGANISE'
+        ELSE 'OK'
+    END                                 AS RecommendedAction,
+    CASE
+        WHEN ips.avg_fragmentation_in_percent >= 30
+             THEN CONCAT('ALTER INDEX ', i.name, ' ON ', OBJECT_NAME(ips.object_id), ' REBUILD WITH (ONLINE = ON);')
+        WHEN ips.avg_fragmentation_in_percent >= 10
+             THEN CONCAT('ALTER INDEX ', i.name, ' ON ', OBJECT_NAME(ips.object_id), ' REORGANIZE;')
+        ELSE '-- No action needed'
+    END                                 AS ActionScript
+FROM
+    sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, 'LIMITED') ips
+    JOIN sys.indexes i
+        ON  ips.object_id = i.object_id
+        AND ips.index_id  = i.index_id
+WHERE
+    ips.page_count > 100    -- ignore tiny indexes
+    AND i.name IS NOT NULL
+ORDER BY
+    ips.avg_fragmentation_in_percent DESC;
+GO
