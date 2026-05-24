@@ -1,4 +1,4 @@
-# sql-portfolio – Paviyathachayini Mahendran
+# Paviyathachayini Mahendran | SQL Portfolio
 I'm a database developer with 8+ years building the data infrastructure that businesses run on — from complex ETL pipelines and schema design to query optimization and stored procedures across SQL Server and MySQL.
 
 Now expanding into data analytics: translating that deep data engineering foundation into dashboards, insights, and business intelligence. Currently pursuing the Microsoft Power BI PL-300 certification.
